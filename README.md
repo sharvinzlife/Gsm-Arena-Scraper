@@ -7,7 +7,7 @@
 > An elegant Java application for extracting comprehensive phone specifications from GSM Arena with high-resolution images.
 
 <p align="center">
-  <img src="https://i.imgur.com/pUUxm9H.png" alt="GSM Arena Scraper Demo" width="650">
+  <img src="https://i.imgur.com/sEWOnnm.jpeg" width="650">
 </p>
 
 ## ✨ Features
