@@ -1,25 +1,33 @@
-# Maven
+# Build files
 target/
-pom.xml.tag
-pom.xml.releaseBackup
-pom.xml.versionsBackup
-pom.xml.next
-release.properties
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
 
 # IDE files
 .idea/
-.vscode/
 *.iml
+.settings/
 .classpath
 .project
-.settings/
+.vscode/
 
-# Output directories
-backup/
-final_images/
+# Data directories
+final_data/
 final_phones/
-*_data/images/*.jpg
+final_images/
+batch_data/
+interactive_data/
 
-# System Files
+# Logs
+*.log
+log/
+logs/
+
+# OS specific files
 .DS_Store
 Thumbs.db
