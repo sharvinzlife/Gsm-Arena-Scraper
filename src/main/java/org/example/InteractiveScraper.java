@@ -49,38 +49,40 @@ public class InteractiveScraper {
     
     private static List<String> getPhoneListInteractively() {
         List<String> phones = new ArrayList<>();
-        Scanner scanner = new Scanner(System.in);
-        boolean addingPhones = true;
-        
-        System.out.println("=== GSM Arena Phone Data Scraper ===");
-        System.out.println("Enter phone names to scrape (one at a time)");
-        System.out.println("Examples: 'Samsung S24 Ultra', 'iPhone 15 Pro Max', 'Pixel 8'");
-        
-        while (addingPhones) {
-            System.out.print("\nEnter phone name (or type 'done' to finish, 'exit' to quit): ");
-            String input = scanner.nextLine().trim();
+        // Use try-with-resources to properly close the scanner
+        try (Scanner scanner = new Scanner(System.in)) {
+            boolean addingPhones = true;
             
-            if (input.equalsIgnoreCase("done")) {
-                addingPhones = false;
-            } else if (input.equalsIgnoreCase("exit")) {
-                return new ArrayList<>();
-            } else if (!input.isEmpty()) {
-                phones.add(input);
-                System.out.println("Added: " + input + " (Total phones: " + phones.size() + ")");
+            System.out.println("=== GSM Arena Phone Data Scraper ===");
+            System.out.println("Enter phone names to scrape (one at a time)");
+            System.out.println("Examples: 'Samsung S24 Ultra', 'iPhone 15 Pro Max', 'Pixel 8'");
+            
+            while (addingPhones) {
+                System.out.print("\nEnter phone name (or type 'done' to finish, 'exit' to quit): ");
+                String input = scanner.nextLine().trim();
+                
+                if (input.equalsIgnoreCase("done")) {
+                    addingPhones = false;
+                } else if (input.equalsIgnoreCase("exit")) {
+                    return new ArrayList<>();
+                } else if (!input.isEmpty()) {
+                    phones.add(input);
+                    System.out.println("Added: " + input + " (Total phones: " + phones.size() + ")");
+                }
             }
-        }
-        
-        System.out.println("\nSummary of phones to scrape:");
-        for (int i = 0; i < phones.size(); i++) {
-            System.out.println((i + 1) + ". " + phones.get(i));
-        }
-        
-        System.out.print("\nProceed with scraping these phones? (y/n): ");
-        String confirm = scanner.nextLine().trim().toLowerCase();
-        
-        if (!confirm.startsWith("y")) {
-            System.out.println("Operation cancelled. Exiting.");
-            return new ArrayList<>();
+            
+            System.out.println("\nSummary of phones to scrape:");
+            for (int i = 0; i < phones.size(); i++) {
+                System.out.println((i + 1) + ". " + phones.get(i));
+            }
+            
+            System.out.print("\nProceed with scraping these phones? (y/n): ");
+            String confirm = scanner.nextLine().trim().toLowerCase();
+            
+            if (!confirm.startsWith("y")) {
+                System.out.println("Operation cancelled. Exiting.");
+                return new ArrayList<>();
+            }
         }
         
         return phones;

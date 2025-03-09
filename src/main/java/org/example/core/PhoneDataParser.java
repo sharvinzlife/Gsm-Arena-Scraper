@@ -7,9 +7,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class PhoneDataParser {
 
     /**
@@ -165,21 +162,5 @@ public class PhoneDataParser {
         }
         
         return phones;
-    }
-    
-    private static String determineCategory(String key) {
-        if (key.contains("Display") || key.contains("Size") || key.contains("Resolution")) {
-            return "Display";
-        } else if (key.contains("Camera") || key.contains("MP") || key.contains("Video")) {
-            return "Camera";
-        } else if (key.contains("CPU") || key.contains("Chipset") || key.contains("RAM")) {
-            return "Platform";
-        } else if (key.contains("Battery") || key.contains("mAh")) {
-            return "Battery";
-        } else if (key.contains("SIM") || key.contains("Network") || key.contains("2G") || key.contains("5G")) {
-            return "Network";
-        } else {
-            return "General";
-        }
     }
 }

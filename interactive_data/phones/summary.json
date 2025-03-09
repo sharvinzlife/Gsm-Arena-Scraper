@@ -1,13 +1,7 @@
 {
-  "total": 5,
-  "successful_phones": [
-    "OnePlus 12R",
-    "Realme GT 6",
-    "iQOO Z9",
-    "Samsung Fold 5",
-    "Motorola G85"
-  ],
+  "total": 1,
+  "successful_phones": ["Nothing Phone (2a) Plus"],
   "failed_phones": [],
   "failed": 0,
-  "successful": 5
+  "successful": 1
 }

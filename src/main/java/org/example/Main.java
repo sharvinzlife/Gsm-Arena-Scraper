@@ -1,34 +1,30 @@
 package org.example;
 
-import org.example.core.OxylabsClient;
-import org.json.JSONArray;
-import org.json.JSONObject;
+// Remove unused imports
+// import org.example.core.OxylabsClient;
+// import org.json.JSONArray;
+// import org.json.JSONObject;
 
-/**
- * Main entry point for GSM Arena Scraper
- */
+import java.util.Scanner;
+
 public class Main {
     public static void main(String[] args) {
-        System.out.println("GSM Arena Scraper");
-        System.out.println("-----------------");
-        System.out.println("Choose an option:");
-        System.out.println("1. Run batch scraper (scrape predefined phone list)");
-        System.out.println("2. Run interactive scraper (enter phone names manually)");
-        
-        // Read user input
-        java.util.Scanner scanner = new java.util.Scanner(System.in);
-        int option = scanner.nextInt();
-        
-        switch (option) {
-            case 1:
-                BatchScraper.main(args);
-                break;
-            case 2:
+        // Use try-with-resources to properly close the scanner
+        try (Scanner scanner = new Scanner(System.in)) {
+            System.out.println("=== GSM Arena Phone Data Scraper ===");
+            System.out.println("1. Interactive Mode - Search for specific phones");
+            System.out.println("2. Batch Mode - Process predefined list of phones");
+            System.out.print("\nSelect mode (1 or 2): ");
+            
+            String choice = scanner.nextLine().trim();
+            
+            if (choice.equals("1")) {
                 InteractiveScraper.main(args);
-                break;
-            default:
-                System.out.println("Invalid option. Exiting.");
-                break;
+            } else if (choice.equals("2")) {
+                BatchScraper.main(args);
+            } else {
+                System.out.println("Invalid selection. Exiting.");
+            }
         }
     }
 }

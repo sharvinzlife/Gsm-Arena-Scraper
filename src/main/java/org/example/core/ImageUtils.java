@@ -36,7 +36,8 @@ public class ImageUtils {
         BRAND_MAPPING.put("iqoo", "vivo");
     }
 
-    private static final String GSM_ARENA_BASE_URL = "https://www.gsmarena.com";
+    // Remove GSM_ARENA_BASE_URL if not used or keep it and use it
+    // private static final String GSM_ARENA_BASE_URL = "https://www.gsmarena.com";
 
     public static String getBrand(String phoneName) {
         String lowerName = phoneName.toLowerCase();
@@ -155,17 +156,6 @@ public class ImageUtils {
     }
     
     /**
-     * Check if the URL is likely to be a phone image
-     */
-    private static boolean isPhoneImage(String url) {
-        String lowerUrl = url.toLowerCase();
-        return (lowerUrl.contains("/vv/pics/") || 
-                lowerUrl.contains("/vv/bigpic/") || 
-                lowerUrl.contains("/imgroot/") ||
-                lowerUrl.contains("-pictures-"));
-    }
-    
-    /**
      * Fallback method to generate image URLs based on patterns
      */
     public static List<String> generateImageUrlsFromPatterns(String originalUrl, String phoneModelId, String brand) {
@@ -203,7 +193,6 @@ public class ImageUtils {
         // For Samsung phones with specific model pattern
         if (brand.equals("samsung")) {
             if (baseModelName.contains("galaxy-s")) {
-                String baseWithoutGalaxy = baseModelName.replace("galaxy-", "");
                 urls.add(domain + "pics/" + brand + "/" + brand + "-" + baseModelName + "-5g-sm-s" + modelNumber + "-0.jpg");
                 urls.add(domain + "pics/" + brand + "/" + brand + "-" + baseModelName + "-5g-sm-s" + modelNumber + "-1.jpg");
                 urls.add(domain + "pics/" + brand + "/" + brand + "-" + baseModelName + "-5g-sm-s" + modelNumber + "-2.jpg");
