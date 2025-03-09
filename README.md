@@ -34,8 +34,61 @@
 
 ### Prerequisites
 
-- Java JDK 11+
-- Maven 3.6+
+#### Installing Java JDK 11+ (OpenJDK)
+
+**Windows:**
+1. Download OpenJDK from [Adoptium](https://adoptium.net/)
+2. Run the installer and follow the on-screen instructions
+3. Set JAVA_HOME environment variable:
+   - Right-click on "This PC" > Properties > Advanced system settings > Environment Variables
+   - Add new system variable `JAVA_HOME` pointing to your JDK installation directory
+   - Add `%JAVA_HOME%\bin` to your PATH variable
+4. Verify installation by opening Command Prompt and typing:
+   ```
+   java -version
+   ```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt update
+sudo apt install openjdk-17-jdk
+java -version
+```
+
+**macOS:**
+```bash
+brew update
+brew install openjdk@17
+echo 'export PATH="/usr/local/opt/openjdk@17/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+java -version
+```
+
+#### Installing Maven 3.6+
+
+**Windows:**
+1. Download Maven from [Apache Maven website](https://maven.apache.org/download.cgi)
+2. Extract the ZIP file to a directory of your choice (e.g., `C:\Program Files\apache-maven`)
+3. Set environment variables:
+   - Add new system variable `MAVEN_HOME` pointing to your Maven directory
+   - Add `%MAVEN_HOME%\bin` to your PATH variable
+4. Verify installation by opening Command Prompt and typing:
+   ```
+   mvn -version
+   ```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt update
+sudo apt install maven
+mvn -version
+```
+
+**macOS:**
+```bash
+brew install maven
+mvn -version
+```
 
 ### Setup
 
@@ -46,6 +99,12 @@ cd Gsm-Arena-Scraper
 
 # Build the project
 mvn clean package
+
+# Run the scraper (interactive mode)
+java -cp target/gsm-arena-scraper-1.0-SNAPSHOT.jar org.example.InteractiveScraper
+
+# Run the scraper (batch mode)
+java -cp target/gsm-arena-scraper-1.0-SNAPSHOT.jar org.example.BatchScraper
 ```
 
 ## 📋 Usage

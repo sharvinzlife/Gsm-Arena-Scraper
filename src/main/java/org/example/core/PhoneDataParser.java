@@ -7,119 +7,128 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class PhoneDataParser {
 
     /**
-     * Parse phone details from HTML content
-     * @param html HTML content from phone details page
-     * @return JSON object with parsed phone details
+     * Parse phone details from the GSM Arena page HTML
      */
     public static JSONObject parsePhoneDetails(String html) {
-        Document doc = Jsoup.parse(html);
-        JSONObject phoneData = new JSONObject();
+        JSONObject phoneDetails = new JSONObject();
         
-        // Extract basic info
-        String phoneName = doc.select("h1.specs-phone-name-title").text();
-        if (phoneName.isEmpty()) {
-            // Try alternative selector
-            phoneName = doc.select("h1.article-info-name").text();
-        }
-        phoneData.put("name", phoneName);
-        
-        // Extract image
-        Element imgElement = doc.selectFirst("div.specs-photo-main img");
-        if (imgElement == null) {
-            // Try alternative selector
-            imgElement = doc.selectFirst("div.article-photo img");
-        }
-        if (imgElement != null) {
-            phoneData.put("image", imgElement.attr("src"));
-        }
-        
-        // Debug: Get HTML structure of specs tables
-        System.out.println("Parsing specs for: " + phoneName);
-        
-        // Extract specs tables
-        Elements specTables = doc.select("table");
-        JSONObject specs = new JSONObject();
-        String currentCategory = "General";
-        
-        for (Element table : specTables) {
-            // Check if this is a spec table
-            if (!table.hasClass("specs-table") && !table.hasClass("ntable")) {
-                continue;
-            }
+        try {
+            Document doc = Jsoup.parse(html);
             
-            // Find the table's category header
-            Element categoryHeader = table.previousElementSibling();
-            while (categoryHeader != null && 
-                  !categoryHeader.tagName().equals("h2") && 
-                  !categoryHeader.tagName().equals("h3") && 
-                  !categoryHeader.tagName().equals("h4")) {
-                categoryHeader = categoryHeader.previousElementSibling();
-            }
-            
-            if (categoryHeader != null) {
-                currentCategory = categoryHeader.text().trim();
-                System.out.println("Found category: " + currentCategory);
-            }
-            
-            // Create category object if it doesn't exist
-            if (!specs.has(currentCategory)) {
-                specs.put(currentCategory, new JSONObject());
-            }
-            JSONObject categorySpecs = specs.getJSONObject(currentCategory);
-            
-            // Parse rows in this table
-            Elements rows = table.select("tr");
-            for (Element row : rows) {
-                Element ttl = row.selectFirst("td.ttl, th.ttl, td:first-child");
-                Element nfo = row.selectFirst("td.nfo, td:nth-child(2)");
+            // Extract phone name
+            Element phoneNameElem = doc.selectFirst("h1.specs-phone-name-title");
+            if (phoneNameElem != null) {
+                String phoneName = phoneNameElem.text().trim();
+                phoneDetails.put("name", phoneName);
                 
-                if (ttl != null && nfo != null) {
-                    String key = ttl.text().replace(":", "").trim();
-                    String value = nfo.text().trim();
-                    
-                    // Skip empty entries
-                    if (!key.isEmpty() && !value.isEmpty()) {
-                        categorySpecs.put(key, value);
-                    }
-                }
+                // Extract brand from phone name
+                String brand = phoneName.split(" ")[0].toLowerCase();
+                phoneDetails.put("brand", brand);
             }
-        }
-        
-        // If we didn't find any specs with the standard approach, try an alternative
-        if (specs.length() == 0) {
-            System.out.println("No specs found with standard approach, trying alternative...");
             
-            Elements allTables = doc.select("table");
-            for (Element table : allTables) {
-                Elements rows = table.select("tr");
-                for (Element row : rows) {
-                    Elements cells = row.select("td");
-                    if (cells.size() >= 2) {
-                        String key = cells.get(0).text().trim();
-                        String value = cells.get(1).text().trim();
-                        
-                        if (!key.isEmpty() && !value.isEmpty()) {
-                            // Try to categorize based on key prefixes
-                            String category = determineCategory(key);
+            // Extract the main phone image
+            Element mainImageElem = doc.selectFirst(".specs-photo-main img");
+            if (mainImageElem != null) {
+                String imageUrl = mainImageElem.attr("src");
+                phoneDetails.put("image", imageUrl);
+            }
+            
+            // Extract specifications from the specs-list div
+            Element specsListDiv = doc.selectFirst("#specs-list");
+            if (specsListDiv != null) {
+                // Get all specification tables
+                Elements specsTables = specsListDiv.select("table");
+                
+                JSONObject allSpecs = new JSONObject();
+                
+                for (Element table : specsTables) {
+                    // Each table represents a category of specifications
+                    Elements rows = table.select("tr");
+                    if (!rows.isEmpty()) {
+                        // Get the category name from the first row's th
+                        Element categoryHeader = rows.first().selectFirst("th");
+                        if (categoryHeader != null) {
+                            String category = categoryHeader.text().trim();
+                            JSONObject categorySpecs = new JSONObject();
                             
-                            if (!specs.has(category)) {
-                                specs.put(category, new JSONObject());
+                            // Process all rows for this category
+                            for (Element row : rows) {
+                                Elements titleElems = row.select("td.ttl");
+                                Elements valueElems = row.select("td.nfo");
+                                
+                                if (!titleElems.isEmpty() && !valueElems.isEmpty()) {
+                                    String title = titleElems.first().text().trim();
+                                    String value = valueElems.first().text().trim();
+                                    
+                                    // Skip empty titles or values
+                                    if (!title.isEmpty() && !value.isEmpty()) {
+                                        // Remove any trailing colon from title
+                                        if (title.endsWith(":")) {
+                                            title = title.substring(0, title.length() - 1).trim();
+                                        }
+                                        
+                                        categorySpecs.put(title, value);
+                                        
+                                        // Add key specs to the top level for easy access
+                                        if (category.equals("Display") && title.equals("Size")) {
+                                            phoneDetails.put("displaySize", value);
+                                        } else if (category.equals("Platform") && title.equals("OS")) {
+                                            phoneDetails.put("os", value);
+                                        } else if (category.equals("Platform") && title.equals("Chipset")) {
+                                            phoneDetails.put("chipset", value);
+                                        } else if (category.equals("Memory") && title.equals("Internal")) {
+                                            phoneDetails.put("memory", value);
+                                        } else if (category.equals("Battery") && title.equals("Type")) {
+                                            phoneDetails.put("battery", value);
+                                        } else if (category.equals("Main Camera") && title.equals("Quad") || title.equals("Triple") || title.equals("Dual") || title.equals("Single")) {
+                                            phoneDetails.put("mainCamera", value);
+                                        } else if (category.equals("Selfie camera") && title.equals("Single") || title.equals("Dual")) {
+                                            phoneDetails.put("selfieCamera", value);
+                                        }
+                                    }
+                                }
                             }
                             
-                            specs.getJSONObject(category).put(key, value);
+                            // Add the category specs to the allSpecs object
+                            if (categorySpecs.length() > 0) {
+                                allSpecs.put(category, categorySpecs);
+                            }
                         }
                     }
                 }
+                
+                // Add all specifications to the phoneDetails
+                if (allSpecs.length() > 0) {
+                    phoneDetails.put("specifications", allSpecs);
+                    System.out.println("Successfully extracted " + allSpecs.length() + " specification categories");
+                }
+            } else {
+                System.out.println("No specs-list div found on the page");
             }
+            
+            // Extract basic overview details from the specs-spotlight-features
+            Elements spotlightFeatures = doc.select(".specs-spotlight-features span[data-spec]");
+            for (Element feature : spotlightFeatures) {
+                String key = feature.attr("data-spec");
+                String value = feature.text().trim();
+                
+                if (!key.isEmpty() && !value.isEmpty()) {
+                    phoneDetails.put(key, value);
+                }
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Error parsing phone details: " + e.getMessage());
+            e.printStackTrace();
         }
         
-        phoneData.put("specifications", specs);
-        System.out.println("Total specification categories: " + specs.length());
-        
-        return phoneData;
+        return phoneDetails;
     }
     
     /**

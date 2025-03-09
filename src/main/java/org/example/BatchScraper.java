@@ -3,10 +3,12 @@ package org.example;
 import org.example.core.ImageUtils;
 import org.example.core.OxylabsClient;
 import org.example.core.PhoneDataParser;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -59,7 +61,7 @@ public class BatchScraper {
         phoneNames.add("realme P2 Pro");
         phoneNames.add("Nothing Phone 2a");
         phoneNames.add("Redmi Note 13 Pro +");
-        phoneNames.add("OnePlus Nord CE 4");
+        phoneNames.add("OnePlus Nord CE4"); // Fixed: removed space between CE and 4
         phoneNames.add("Nothing Phone 2a Plus");
         phoneNames.add("iQOO Z9s Pro");
         phoneNames.add("realme 12 Pro +");
@@ -171,6 +173,20 @@ public class BatchScraper {
     }
     
     private static JSONObject scrapePhone(String phoneName, OxylabsClient oxylabs) throws Exception {
+        // First try direct search
+        JSONObject result = searchAndScrapePhone(phoneName, oxylabs);
+        
+        // If direct search fails and it's a special case like "CMF by Nothing", try alternatives
+        if (result == null && phoneName.toLowerCase().contains("cmf by nothing")) {
+            String alternativeName = phoneName.toLowerCase().replace("cmf by nothing", "nothing").trim();
+            System.out.println("Trying alternative search: " + alternativeName);
+            result = searchAndScrapePhone(alternativeName, oxylabs);
+        }
+        
+        return result;
+    }
+    
+    private static JSONObject searchAndScrapePhone(String phoneName, OxylabsClient oxylabs) throws Exception {
         // Step 1: Search for the phone
         String searchUrl = SEARCH_URL + phoneName.replace(" ", "+");
         String searchResultsHtml = oxylabs.scrape(searchUrl);
@@ -190,48 +206,187 @@ public class BatchScraper {
         System.out.println("Found phone: " + foundPhoneName);
         System.out.println("URL: " + fullPhoneUrl);
         
+        // Check for Samsung Galaxy S24 special case
+        if (phoneName.equalsIgnoreCase("Samsung S24") && 
+            foundPhoneName.toLowerCase().contains("ultra")) {
+            System.out.println("⚠️ Found Ultra variant instead of base model. Trying more specific search...");
+            String moreSpecificSearch = "Samsung Galaxy S24";
+            return searchForExactModel(moreSpecificSearch, oxylabs, false);
+        }
+        
         // Extract phone model ID from URL for image path construction
-        String phoneModel = phoneUrl.substring(0, phoneUrl.lastIndexOf("."));
+        String phoneModelId = phoneUrl.substring(0, phoneUrl.lastIndexOf("."));
         String brand = ImageUtils.getBrand(foundPhoneName);
         
         // Step 3: Get the phone details page
         String phoneDetailsHtml = oxylabs.scrape(fullPhoneUrl);
         
-        // Step 4: Parse the details
+        // Step 4: Parse phone details with enhanced parser
+        System.out.println("Parsing specifications for: " + foundPhoneName);
         JSONObject phoneDetails = PhoneDataParser.parsePhoneDetails(phoneDetailsHtml);
         
-        // Step 5: Generate proper high-resolution image URL
-        String originalImageUrl = phoneDetails.optString("image", "");
-        List<String> imageUrls = ImageUtils.generateImageUrls(originalImageUrl, brand, phoneModel, foundPhoneName);
+        // Step 5: Extract images from pictures page
+        // Get the model identifier without the file extension
+        String modelId = phoneUrl.substring(phoneUrl.lastIndexOf("-") + 1, phoneUrl.lastIndexOf("."));
         
-        // Try each image URL
-        String workingImageUrl = "";
-        for (String imageUrl : imageUrls) {
-            try {
-                System.out.println("Trying image URL: " + imageUrl);
-                if (ImageUtils.isImageAvailable(imageUrl)) {
-                    workingImageUrl = imageUrl;
-                    System.out.println("✅ Found working image URL: " + workingImageUrl);
-                    break;
+        // Extract the base phone model name WITHOUT the model ID at the end
+        String basePhoneModel = phoneUrl.substring(0, phoneUrl.lastIndexOf("-"));
+        
+        // Construct pictures URL using the correct GSM Arena format: {base_model}-pictures-{id}.php
+        String picturesUrl = GSM_ARENA_BASE_URL + "/" + basePhoneModel + "-pictures-" + modelId + ".php";
+        
+        System.out.println("Fetching pictures from: " + picturesUrl);
+        List<String> imageUrls = ImageUtils.extractImagesFromPicturesPage(picturesUrl, oxylabs);
+        
+        // If no images found, try pattern-based approach
+        if (imageUrls.isEmpty()) {
+            String originalImageUrl = phoneDetails.optString("image", "");
+            imageUrls = ImageUtils.generateImageUrlsFromPatterns(originalImageUrl, phoneModelId, brand);
+            
+            // Try each image URL
+            List<String> workingImageUrls = new ArrayList<>();
+            for (String imageUrl : imageUrls) {
+                try {
+                    System.out.println("Trying image URL: " + imageUrl);
+                    if (ImageUtils.isImageAvailable(imageUrl)) {
+                        workingImageUrls.add(imageUrl);
+                        System.out.println("✅ Found working image URL: " + imageUrl);
+                        if (workingImageUrls.size() >= 3) {  // Limit to 3 images
+                            break;
+                        }
+                    }
+                } catch (Exception e) {
+                    System.out.println("Image URL not available: " + imageUrl);
                 }
-            } catch (Exception e) {
-                System.out.println("Image URL not available: " + imageUrl);
             }
+            
+            imageUrls = workingImageUrls;
         }
         
-        // Save the working image URL
-        if (!workingImageUrl.isEmpty()) {
-            phoneDetails.put("highResImage", workingImageUrl);
-            ImageUtils.downloadImage(workingImageUrl, phoneName, IMAGES_DIR);
-        } else {
-            System.out.println("⚠️ Could not find a working high-res image URL");
-            if (!originalImageUrl.isEmpty()) {
-                ImageUtils.downloadImage(originalImageUrl, phoneName, IMAGES_DIR);
+        // Download multiple images
+        if (!imageUrls.isEmpty()) {
+            phoneDetails.put("images", new JSONArray(imageUrls));
+            if (!imageUrls.isEmpty()) {
+                phoneDetails.put("highResImage", imageUrls.get(0));
             }
+            ImageUtils.downloadImages(imageUrls, phoneName, IMAGES_DIR);
+        } else {
+            System.out.println("⚠️ Could not find any working image URLs");
         }
         
         // Save phone details to JSON
         String safeFileName = phoneName.replaceAll("[^a-zA-Z0-9]", "_") + ".json";
+        try (FileWriter file = new FileWriter(PHONES_DIR + "/" + safeFileName)) {
+            file.write(phoneDetails.toString(2));
+            System.out.println("✅ Saved: " + PHONES_DIR + "/" + safeFileName);
+        }
+        
+        return phoneDetails;
+    }
+    
+    // Add new method for more specific model search
+    private static JSONObject searchForExactModel(String exactModelName, OxylabsClient oxylabs, boolean allowUltra) throws Exception {
+        String searchUrl = SEARCH_URL + exactModelName.replace(" ", "+");
+        String searchResultsHtml = oxylabs.scrape(searchUrl);
+        
+        Document searchResults = Jsoup.parse(searchResultsHtml);
+        
+        // Look for all results
+        Elements allResults = searchResults.select("div.makers ul li a");
+        
+        if (allResults.isEmpty()) {
+            System.out.println("❌ No search results found for: " + exactModelName);
+            return null;
+        }
+        
+        // Try to find exact match or best match
+        Element bestMatch = null;
+        
+        for (Element result : allResults) {
+            String resultName = result.select("span").text().toLowerCase();
+            String modelNameLower = exactModelName.toLowerCase();
+            
+            // Skip Ultra/Pro variants if not allowed
+            if (!allowUltra && (resultName.contains("ultra") || resultName.contains("pro"))) {
+                continue;
+            }
+            
+            // Exact match is best
+            if (resultName.equals(modelNameLower) || 
+                resultName.equals("samsung galaxy " + modelNameLower)) {
+                bestMatch = result;
+                break;
+            }
+            
+            // If no exact match yet, use first available as fallback
+            if (bestMatch == null) {
+                bestMatch = result;
+            }
+        }
+        
+        if (bestMatch == null) {
+            System.out.println("❌ Could not find appropriate model match for: " + exactModelName);
+            return null;
+        }
+        
+        String phoneUrl = bestMatch.attr("href");
+        String fullPhoneUrl = GSM_ARENA_BASE_URL + "/" + phoneUrl;
+        String foundPhoneName = bestMatch.select("span").text();
+        System.out.println("Found best matching phone: " + foundPhoneName);
+        System.out.println("URL: " + fullPhoneUrl);
+        
+        // Continue with regular scraping
+        String phoneModelId = phoneUrl.substring(0, phoneUrl.lastIndexOf("."));
+        String brand = ImageUtils.getBrand(foundPhoneName);
+        
+        String phoneDetailsHtml = oxylabs.scrape(fullPhoneUrl);
+        JSONObject phoneDetails = PhoneDataParser.parsePhoneDetails(phoneDetailsHtml);
+        
+        // Use the same corrected URL construction approach for consistency
+        String modelId = phoneUrl.substring(phoneUrl.lastIndexOf("-") + 1, phoneUrl.lastIndexOf("."));
+        String basePhoneModel = phoneUrl.substring(0, phoneUrl.lastIndexOf("-"));
+        String picturesUrl = GSM_ARENA_BASE_URL + "/" + basePhoneModel + "-pictures-" + modelId + ".php";
+        
+        System.out.println("Fetching pictures from: " + picturesUrl);
+        List<String> imageUrls = ImageUtils.extractImagesFromPicturesPage(picturesUrl, oxylabs);
+        
+        if (imageUrls.isEmpty()) {
+            String originalImageUrl = phoneDetails.optString("image", "");
+            imageUrls = ImageUtils.generateImageUrlsFromPatterns(originalImageUrl, phoneModelId, brand);
+            
+            List<String> workingImageUrls = new ArrayList<>();
+            for (String imageUrl : imageUrls) {
+                try {
+                    System.out.println("Trying image URL: " + imageUrl);
+                    if (ImageUtils.isImageAvailable(imageUrl)) {
+                        workingImageUrls.add(imageUrl);
+                        System.out.println("✅ Found working image URL: " + imageUrl);
+                        if (workingImageUrls.size() >= 3) {
+                            break;
+                        }
+                    }
+                } catch (Exception e) {
+                    System.out.println("Image URL not available: " + imageUrl);
+                }
+            }
+            
+            imageUrls = workingImageUrls;
+        }
+        
+        if (!imageUrls.isEmpty()) {
+            phoneDetails.put("images", new JSONArray(imageUrls));
+            if (!imageUrls.isEmpty()) {
+                phoneDetails.put("highResImage", imageUrls.get(0));
+            }
+            ImageUtils.downloadImages(imageUrls, exactModelName, IMAGES_DIR);
+        } else {
+            String originalImageUrl = phoneDetails.optString("image", "");
+            if (!originalImageUrl.isEmpty()) {
+                ImageUtils.downloadImage(originalImageUrl, exactModelName, IMAGES_DIR);
+            }
+        }
+        
+        String safeFileName = exactModelName.replaceAll("[^a-zA-Z0-9]", "_") + ".json";
         try (FileWriter file = new FileWriter(PHONES_DIR + "/" + safeFileName)) {
             file.write(phoneDetails.toString(2));
             System.out.println("✅ Saved: " + PHONES_DIR + "/" + safeFileName);

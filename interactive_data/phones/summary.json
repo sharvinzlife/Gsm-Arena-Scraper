@@ -1,7 +1,13 @@
 {
-  "total": 1,
-  "successful_phones": ["Samsung Galaxy S24 Ultra"],
+  "total": 5,
+  "successful_phones": [
+    "OnePlus 12R",
+    "Realme GT 6",
+    "iQOO Z9",
+    "Samsung Fold 5",
+    "Motorola G85"
+  ],
   "failed_phones": [],
   "failed": 0,
-  "successful": 1
+  "successful": 5
 }
