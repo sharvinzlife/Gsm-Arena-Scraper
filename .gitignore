@@ -1,0 +1,33 @@
+# Build files
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# IDE files
+.idea/
+*.iml
+.settings/
+.classpath
+.project
+.vscode/
+
+# Data directories
+final_data/
+final_phones/
+final_images/
+batch_data/
+interactive_data/
+
+# Logs
+*.log
+log/
+logs/
+
+# OS specific files
+.DS_Store
+Thumbs.db
